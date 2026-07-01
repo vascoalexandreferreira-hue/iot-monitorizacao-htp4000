@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard Proleite — IoT Industrial</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+  <style>
+    :root { --azul-medio: #2863A3; --azul-escuro: #103B75; --verde-medio: #A2CF3D; --branco: #FFFFFF; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: sans-serif; background: var(--azul-medio); color: var(--branco); padding: 24px; }
+
+    .banner-motor { display: flex; align-items: center; gap: 12px; border-radius: 10px; padding: 14px 20px; margin-bottom: 24px; font-size: 16px; font-weight: 600; transition: all 0.3s ease; }
+    .banner-motor .ponto { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; transition: all 0.3s ease; }
+    .banner-motor.desligado { background: #5a5a5a; border: 1px solid #888; }
+    .banner-motor.desligado .ponto { background: #bbb; }
+    .banner-motor.desligado .texto-principal { color: #fff; }
+    .banner-motor.vazio { background: rgba(239, 159, 39, 0.15); border: 1px solid #EF9F27; }
+    .banner-motor.vazio .ponto { background: #EF9F27; box-shadow: 0 0 6px #EF9F27; }
+    .banner-motor.vazio .texto-principal { color: #EF9F27; }
+    .banner-motor.trabalho { background: rgba(162, 207, 61, 0.15); border: 1px solid var(--verde-medio); }
+    .banner-motor.trabalho .ponto { background: var(--verde-medio); box-shadow: 0 0 6px var(--verde-medio); }
+    .banner-motor.trabalho .texto-principal { color: var(--verde-medio); }
+    
+    .header-container { display: flex; align-items: center; gap: 24px; margin-bottom: 24px; }
+    .logo-img { height: 65px; background: var(--branco); padding: 8px 16px; border-radius: 8px; }
+    h1 { font-size: 22px; font-weight: 500; color: var(--branco); margin: 0; }
+    .box-painel { background: var(--azul-escuro); border-radius: 10px; padding: 16px; margin-bottom: 24px; }
+    .box-painel h3 { font-size: 14px; color: var(--branco); margin-bottom: 14px; font-weight: 500; text-transform: uppercase; }
+
+    .saude-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .saude-sensor { background: rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 14px; display: flex; align-items: center; gap: 12px; border: 1px solid rgba(255, 255, 255, 0.1); }
+    .saude-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+    .saude-dot.online  { background: var(--verde-medio); box-shadow: 0 0 6px var(--verde-medio); }
+    .saude-dot.lento   { background: #EF9F27; box-shadow: 0 0 6px #EF9F27; }
+    .saude-dot.offline { background: #ff6b6b; box-shadow: 0 0 6px #ff6b6b; }
+    .saude-info { flex: 1; }
+    .saude-nome   { font-size: 13px; font-weight: 500; color: var(--branco); }
+    .saude-estado { font-size: 11px; margin-top: 2px; }
+    .saude-estado.online  { color: var(--verde-medio); }
+    .saude-estado.lento   { color: #EF9F27; }
+    .saude-estado.offline { color: #ff6b6b; }
+    .saude-ultima { font-size: 10px; color: #ccc; margin-top: 2px; }
+
+    .alerta-linha { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); font-size: 13px; }
+    .btn-resolver { margin-left: auto; flex-shrink: 0; background: transparent; color: var(--verde-medio); border: 1px solid var(--verde-medio); border-radius: 4px; padding: 4px 12px; font-size: 11px; cursor: pointer; transition: 0.2s; }
+    .btn-resolver:hover { background: var(--verde-medio); color: var(--azul-escuro); font-weight: bold; }
+    .btn-resolver-todos { background: rgba(162, 207, 61, 0.2); color: var(--verde-medio); border: 1px solid var(--verde-medio); border-radius: 6px; padding: 4px 12px; font-size: 11px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    .btn-resolver-todos:hover { background: var(--verde-medio); color: var(--azul-escuro); }
+    .btn-ver-mais { background: transparent; color: var(--verde-medio); border: none; cursor: pointer; text-decoration: underline; font-size: 13px; margin-top: 12px; transition: 0.2s; }
+    .btn-ver-mais:hover { color: var(--branco); }
+    .badge { padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; }
+    .badge.CRITICO { background: #ff6b6b; color: #fff; }
+    .badge.AVISO   { background: #EF9F27; color: #fff; }
+    .hora { color: #ddd; font-size: 11px; min-width: 60px; }
+    .sem-alertas { color: #ddd; font-size: 13px; padding: 12px 0; display: block; text-align: center; }
+
+    .export-box { display: flex; align-items: center; gap: 16px; }
+    .export-box h3 { margin: 0; }
+    .btn-excel { background: var(--verde-medio); color: var(--azul-escuro); border: none; border-radius: 6px; padding: 8px 18px; font-size: 13px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    .btn-excel:hover { background: #8ebd33; }
+    select { background: rgba(255,255,255,0.1); color: var(--branco); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer; }
+    select option { background: var(--azul-escuro); color: var(--branco); }
+
+    .cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
+    .card { background: var(--azul-escuro); border-radius: 10px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .card .label { font-size: 12px; color: #ddd; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .card .valor { font-size: 28px; font-weight: bold; color: var(--verde-medio); }
+    .card .unidade { font-size: 13px; color: #ddd; margin-left: 4px; font-weight: normal; }
+
+    .graficos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .grafico-box { background: var(--branco); border-radius: 10px; padding: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .grafico-box h3 { font-size: 14px; color: var(--azul-escuro); margin-bottom: 12px; font-weight: bold; text-transform: uppercase; }
+    
+    .medias-graficos { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .medias-grafico { background: var(--branco); border-radius: 8px; padding: 12px; }
+    .medias-grafico h4 { font-size: 13px; color: var(--azul-escuro); margin-bottom: 10px; font-weight: bold; }
+    .legenda-mm { display: flex; gap: 12px; margin-top: 8px; flex-wrap: wrap; }
+    .legenda-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--azul-escuro); font-weight: bold; }
+    .legenda-cor { width: 16px; height: 2px; border-radius: 1px; }
+    .legenda-cor.tracejado { border-top: 2px dashed; background: none; height: 0; }
+
+    .stats-controls { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .stats-controls span { font-size: 12px; color: #ddd; }
+    .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .stats-sensor { background: rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 14px; border: 1px solid rgba(255, 255, 255, 0.1); }
+    .stats-sensor .sensor-titulo { font-size: 13px; font-weight: bold; color: var(--branco); margin-bottom: 10px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); text-transform: uppercase;}
+    .stats-linha { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+    .stats-linha .chave { color: #ddd; }
+    .stats-linha .valor-stat { color: var(--verde-medio); font-weight: bold; }
+    .stats-total { font-size: 11px; color: #aaa; margin-top: 8px; text-align: right; }
+  </style>
+</head>
+<body>
+
+  <div class="header-container">
+    <img src="/static/logo.png" alt="Proleite" class="logo-img" onerror="this.style.display='none'">
+    <h1>Dashboard IoT Industrial — Monitorização de Sensores</h1>
+  </div>
+
+  <div class="banner-motor desligado" id="banner-motor">
+    <div class="ponto"></div>
+    <div class="texto-principal" id="texto-motor">A verificar estado...</div>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="label">Leituras / último min.</div><div class="valor" id="leituras-min">—</div></div>
+    <div class="card"><div class="label">Alertas ativos</div><div class="valor" id="alertas-ativos" style="color:#ff6b6b">—</div></div>
+    <div class="card"><div class="label">Temperatura Instantânea</div><div class="valor" id="temp-inst">—</div></div>
+    <div class="card"><div class="label">Vibração Instantânea</div><div class="valor" id="vib-inst">—</div></div>
+    <div class="card"><div class="label">Corrente Instantânea</div><div class="valor" id="corrente-inst">—</div></div>
+  </div>
+
+  <div class="box-painel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+      <h3 style="margin: 0;">Tendências dos Sensores (Dados Absolutos)</h3>
+      <div style="display: flex; gap: 10px; align-items: center;">
+        <span style="font-size: 12px; color: #ddd;">Janela de Tempo:</span>
+        <select id="select-periodo-graficos" onchange="carregarDados()">
+          <option value="5 MINUTE">Últimos 5 minutos</option>
+          <option value="15 MINUTE">Últimos 15 minutos</option>
+          <option value="30 MINUTE" selected>Últimos 30 minutos</option>
+          <option value="1 HOUR">Última hora</option>
+          <option value="1 DAY">Último dia</option>
+          <option value="7 DAY">Última semana</option>
+        </select>
+      </div>
+    </div>
+    <div class="graficos">
+      <div class="grafico-box"><h3>Temperatura (°C)</h3><canvas id="chartTemp"></canvas></div>
+      <div class="grafico-box"><h3>Vibração RMS (mm/s)</h3><canvas id="chartVib"></canvas></div>
+      <div class="grafico-box"><h3>Corrente (A)</h3><canvas id="chartCorr"></canvas></div>
+    </div>
+  </div>
+
+  <div class="box-painel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <h3 style="margin: 0;">Alertas recentes</h3>
+      <button class="btn-resolver-todos" onclick="resolverTodosAlertas()">Resolver Todos</button>
+    </div>
+    <div id="lista-alertas"><span class="sem-alertas">A carregar...</span></div>
+    <div style="text-align: center; display: none;" id="ver-mais-container">
+      <button class="btn-ver-mais" id="btn-ver-mais" onclick="toggleAlertas()">Ver mais</button>
+    </div>
+  </div>
+
+  <div class="box-painel">
+    <h3>Estatísticas por período</h3>
+    <div class="stats-controls">
+      <select id="select-periodo" onchange="carregarEstatisticas()">
+        <option value="5 MINUTE">Últimos 5 minutos</option>
+        <option value="15 MINUTE">Últimos 15 minutos</option>
+        <option value="30 MINUTE" selected>Últimos 30 minutos</option>
+        <option value="1 HOUR">Última hora</option>
+        <option value="1 DAY">Último dia</option>
+        <option value="7 DAY">Última semana</option>
+      </select>
+      <span id="stats-label-periodo"></span>
+    </div>
+    <div class="stats-grid" id="stats-grid"><div class="stats-sensor"><span style="color:#ddd;font-size:13px">A carregar...</span></div></div>
+  </div>
+
+  <div class="box-painel">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+      <h3 style="margin: 0;">Cartas de Controlo (Shewhart) - Visualização Dinâmica por Fase</h3>
+      <div style="display: flex; gap: 15px; align-items: center;">
+        <span id="cc-info" style="font-size: 13px; font-weight: bold;"></span>
+      </div>
+    </div>
+
+    <div class="medias-graficos">
+      <div class="medias-grafico">
+        <h4>Temperatura (°C)</h4><canvas id="chartCCTemp"></canvas>
+        <div class="legenda-mm">
+          <div class="legenda-item"><div class="legenda-cor" style="background:#A2CF3D"></div>Leitura</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#103B75"></div>LC</div>
+          <div class="legenda-item"><div class="legenda-cor tracejado" style="border-color:#EF9F27"></div>Aviso (2σ)</div>
+          <div class="legenda-item"><div class="legenda-cor tracejado" style="border-color:#ff6b6b"></div>Crítico (3σ)</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#ff6b6b;width:8px;height:8px;border-radius:50%"></div>Anomalia</div>
+        </div>
+      </div>
+      <div class="medias-grafico">
+        <h4>Vibração RMS (mm/s)</h4><canvas id="chartCCVib"></canvas>
+        <div class="legenda-mm">
+          <div class="legenda-item"><div class="legenda-cor" style="background:#A2CF3D"></div>Leitura</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#103B75"></div>LC</div>
+          <div class="legenda-item"><div class="legenda-cor tracejado" style="border-color:#EF9F27"></div>Aviso (2σ)</div>
+          <div class="legenda-item"><div class="legenda-cor tracejado" style="border-color:#ff6b6b"></div>Crítico (3σ)</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#ff6b6b;width:8px;height:8px;border-radius:50%"></div>Anomalia</div>
+        </div>
+      </div>
+      <div class="medias-grafico">
+        <h4>Corrente (A)</h4><canvas id="chartCCCorr"></canvas>
+        <div class="legenda-mm">
+          <div class="legenda-item"><div class="legenda-cor" style="background:#A2CF3D"></div>Leitura</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#103B75"></div>LC</div>
+          <div class="legenda-item"><div class="legenda-cor tracejado" style="border-color:#EF9F27"></div>Aviso (2σ)</div>
+          <div class="legenda-item"><div class="legenda-cor tracejado" style="border-color:#ff6b6b"></div>Crítico (3σ)</div>
+          <div class="legenda-item"><div class="legenda-cor" style="background:#ff6b6b;width:8px;height:8px;border-radius:50%"></div>Anomalia</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="box-painel export-box">
+    <h3>Exportar dados</h3>
+    <select id="select-export-periodo">
+      <option value="5 MINUTE">Últimos 5 minutos</option>
+      <option value="15 MINUTE">Últimos 15 minutos</option>
+      <option value="30 MINUTE" selected>Últimos 30 minutos</option>
+      <option value="1 HOUR">Última hora</option>
+      <option value="1 DAY">Último dia</option>
+      <option value="7 DAY">Última semana</option>
+    </select>
+    <button class="btn-excel" onclick="exportarExcel()">Exportar Excel</button>
+  </div>
+
+  <div class="box-painel">
+    <h3>Saúde do sistema</h3>
+    <div class="saude-grid" id="saude-grid"><div class="saude-sensor"><span style="color:#ddd;font-size:13px">A verificar...</span></div></div>
+  </div>
+
+  <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 40px; padding: 30px; text-align: center;">
+    <img src="/static/isvouga_logo.png" alt="ISVOUGA" style="height: 80px; margin-bottom: 16px;" onerror="this.style.display='none'" />
+    <p style="font-size: 14px; color: #ddd; margin: 0; font-weight: 500;">Programa desenvolvido por: Eric Sousa e Vasco Ferreira</p>
+  </div>
+
+<script>
+const COR_VERDE_PROLEITE = "#A2CF3D";
+const COR_AZUL_ESCURO = "#103B75";
+
+const LIMIAR_LIGADO = 2.5;  
+const LIMIAR_CARGA  = 21.0; 
+
+let estadoAtualMaquina = "DESLIGADO";
+let estadoAnteriorMaquina = "DESLIGADO";
+let timestampMudancaEstado = Date.now(); 
+
+let todasAnomalias = [];
+let mostrarTodasAnomalias = false;
+
+function parseHoraDB(horaRaw) {
+    if (!horaRaw) return 0;
+    const p = horaRaw.split(/[- :]/);
+    return new Date(p[0], p[1]-1, p[2], p[3], p[4], p[5]).getTime();
+}
+
+function formatarEixoX(horaRaw, periodo) {
+    if (!horaRaw) return "";
+    const partes = horaRaw.split(" "); 
+    if (partes.length < 2) return horaRaw;
+    const hora = partes[1].split(":");
+    return `${hora[0]}:${hora[1]}:${hora[2]}`;
+}
+
+// ── REAMOSTRAGEM DINÂMICA (Apenas para o gráfico de Tendências Absolutas) ──
+function reamostrarDados(amostraRaw, periodo, chaveValor, maxPontos = 250) {
+    const agora = new Date();
+    let ms = 30 * 60 * 1000;
+    if (periodo === "5 MINUTE") ms = 5 * 60 * 1000;
+    else if (periodo === "15 MINUTE") ms = 15 * 60 * 1000;
+    else if (periodo === "30 MINUTE") ms = 30 * 60 * 1000;
+    else if (periodo === "1 HOUR") ms = 60 * 60 * 1000;
+    else if (periodo === "1 DAY") ms = 24 * 60 * 60 * 1000;
+    else if (periodo === "7 DAY") ms = 7 * 24 * 60 * 60 * 1000;
+
+    let inicio = new Date(agora.getTime() - ms);
+    const passoMs = ms / maxPontos;
+
+    const dadosValidos = amostraRaw.map(r => {
+        return { ts: parseHoraDB(r.hora), valor: parseFloat(r[chaveValor] !== undefined ? r[chaveValor] : (r.valor || 0)) };
+    }).sort((a,b) => a.ts - b.ts);
+
+    const resultado = [];
+    let indiceDados = 0;
+
+    for (let i = 0; i <= maxPontos; i++) {
+        const tsAtual = inicio.getTime() + (i * passoMs);
+        const tsProximo = tsAtual + passoMs;
+        let soma = 0, count = 0;
+        while (indiceDados < dadosValidos.length && dadosValidos[indiceDados].ts < tsProximo) {
+            if (dadosValidos[indiceDados].ts >= tsAtual) { soma += dadosValidos[indiceDados].valor; count++; }
+            indiceDados++;
+        }
+        const d = new Date(tsAtual);
+        const pad = n => String(n).padStart(2, '0');
+        const horaStr = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+        let valorBalde = (count > 0) ? (soma / count) : 0;
+        resultado.push({ hora: horaStr, valor: valorBalde });
+    }
+    return resultado;
+}
+
+function aplicarLinhasEixoX(chartsArray, maxTicks = 8) {
+    chartsArray.forEach(c => {
+        if (c.options && c.options.scales && c.options.scales.x) {
+            c.options.scales.x.ticks.maxTicksLimit = maxTicks;
+        }
+    });
+}
+
+async function carregarEstadoMotor() {
+  try {
+    const res  = await fetch("/api/estado-motor");
+    const data = await res.json();
+    const banner = document.getElementById("banner-motor");
+    const titulo = document.getElementById("texto-motor");
+    const corrente = parseFloat(data.corrente) || 0;
+
+    banner.classList.remove("desligado", "vazio", "trabalho");
+
+    if (corrente > LIMIAR_CARGA) { 
+      estadoAtualMaquina = "TRABALHO";
+      banner.classList.add("trabalho");
+      titulo.textContent = "Misturadora Em Trabalho";
+    } else if (corrente > LIMIAR_LIGADO && corrente <= LIMIAR_CARGA) {
+      estadoAtualMaquina = "VAZIO";
+      banner.classList.add("vazio"); 
+      titulo.textContent = "Misturadora Vazia"; 
+    } else {
+      estadoAtualMaquina = "DESLIGADO";
+      banner.classList.add("desligado"); 
+      titulo.textContent = "Misturadora Desligada"; 
+    }
+
+    if (estadoAtualMaquina !== estadoAnteriorMaquina) {
+        estadoAnteriorMaquina = estadoAtualMaquina;
+        timestampMudancaEstado = Date.now(); // Marca o milissegundo exato do novo estado
+
+        carregarDados();
+        carregarCartasControlo();
+        carregarEstatisticas();
+    }
+  } catch (e) { console.error("Erro Estado Motor:", e); }
+}
+
+function criarGraficoAbsoluto(id, yMax) {
+  return new Chart(document.getElementById(id), {
+    type: "line", 
+    data: { labels: [], datasets: [{ data: [], borderColor: COR_VERDE_PROLEITE, backgroundColor: COR_VERDE_PROLEITE + "1A", borderWidth: 2.5, pointRadius: 0, hoverRadius: 4, tension: 0.4, fill: true }] },
+    options: { 
+        responsive: true, animation: false, plugins: { legend: { display: false } }, 
+        scales: { 
+            x: { ticks: { color: COR_AZUL_ESCURO, maxRotation: 45, minRotation: 45, font: { size: 9 }, autoSkip: true }, grid: { color: COR_AZUL_ESCURO + "15" } }, 
+            y: { min: 0, max: yMax, ticks: { color: COR_AZUL_ESCURO, font: { size: 11 } }, grid: { color: COR_AZUL_ESCURO + "15" } } 
+        } 
+    }
+  });
+}
+const chartTemp = criarGraficoAbsoluto("chartTemp", 80); 
+const chartVib  = criarGraficoAbsoluto("chartVib", 10); 
+const chartCorr = criarGraficoAbsoluto("chartCorr", 80); 
+
+// ── CONFIGURAÇÃO DE CARTAS DE CONTROLO DE SHEWHART ──
+function criarGraficoCC(id) {
+  return new Chart(document.getElementById(id), {
+    type: "line",
+    data: {
+      labels: [],
+      datasets: [
+        { label: "Leitura Real", data: [], borderColor: COR_VERDE_PROLEITE, backgroundColor: "transparent", borderWidth: 2, tension: 0.2, pointRadius: (ctx) => (ctx.chart._fora && ctx.chart._fora[ctx.dataIndex]) ? 5 : 0, pointBackgroundColor: "#ff6b6b", pointBorderColor: "#ff6b6b" },
+        { label: "LC", data: [], borderColor: COR_AZUL_ESCURO, borderWidth: 1.5, pointRadius: 0, tension: 0 },
+        { label: "LSC Crítico", data: [], borderColor: "#ff6b6b", borderWidth: 1.5, borderDash: [6, 3], pointRadius: 0, tension: 0 },
+        { label: "LIC Crítico", data: [], borderColor: "#ff6b6b", borderWidth: 1.5, borderDash: [6, 3], pointRadius: 0, tension: 0 },
+        { label: "Aviso Superior (2σ)", data: [], borderColor: "#EF9F27", borderWidth: 1, borderDash: [3, 3], pointRadius: 0, tension: 0 },
+        { label: "Aviso Inferior (2σ)", data: [], borderColor: "#EF9F27", borderWidth: 1, borderDash: [3, 3], pointRadius: 0, tension: 0 }
+      ]
+    },
+    options: {
+      responsive: true, animation: false, plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: COR_AZUL_ESCURO, maxRotation: 45, minRotation: 45, font: { size: 9 }, autoSkip: true }, grid: { color: COR_AZUL_ESCURO + "22" } },
+        y: { ticks: { color: COR_AZUL_ESCURO, font: { size: 10 } }, grid: { color: COR_AZUL_ESCURO + "22" } }
+      }
+    }
+  });
+}
+const chartCCTemp = criarGraficoCC("chartCCTemp");
+const chartCCVib  = criarGraficoCC("chartCCVib");
+const chartCCCorr = criarGraficoCC("chartCCCorr");
+
+async function carregarDados() {
+  try {
+    const periodo = document.getElementById("select-periodo-graficos").value;
+    const res  = await fetch(`/api/leituras?periodo=${encodeURIComponent(periodo)}`); 
+    const rows = await res.json();
+    if (!Array.isArray(rows)) return;
+    
+    let tempRaw = rows.filter(r => r.topico.includes("temperatura") && r.temperatura !== null);
+    let vibRaw  = rows.filter(r => r.topico.includes("vibracao")    && r.rms_mm_s    !== null);
+    let corrRaw = rows.filter(r => r.topico.includes("corrente")    && r.corrente_A  !== null);
+
+    const amostraTemp = reamostrarDados(tempRaw, periodo, "temperatura", 250);
+    const amostraVib  = reamostrarDados(vibRaw, periodo, "rms_mm_s", 250);
+    const amostraCorr = reamostrarDados(corrRaw, periodo, "corrente_A", 250);
+
+    aplicarLinhasEixoX([chartTemp, chartVib, chartCorr]);
+
+    chartTemp.data.labels = amostraTemp.map(r => formatarEixoX(r.hora, "30 MINUTE")); 
+    chartTemp.data.datasets[0].data = amostraTemp.map(r => r.valor);
+    chartTemp.update("none");
+
+    chartVib.data.labels = amostraVib.map(r => formatarEixoX(r.hora, "30 MINUTE")); 
+    chartVib.data.datasets[0].data = amostraVib.map(r => r.valor);
+    chartVib.update("none");
+
+    chartCorr.data.labels = amostraCorr.map(r => formatarEixoX(r.hora, "30 MINUTE")); 
+    chartCorr.data.datasets[0].data = amostraCorr.map(r => r.valor);
+    chartCorr.update("none");
+  } catch (e) { console.error("Erro Leituras:", e); }
+}
+
+function ajustarEixoYCartaControlo(chart, limitesFixos) {
+  if (limitesFixos && limitesFixos.y_min !== undefined && limitesFixos.y_max !== undefined) {
+      chart.options.scales.y.min = limitesFixos.y_min;
+      chart.options.scales.y.max = limitesFixos.y_max;
+  } else {
+      delete chart.options.scales.y.min;
+      delete chart.options.scales.y.max;
+  }
+}
+
+function atualizarCartaControloPure(chart, listaDadosPuros, limitesFixos) {
+  // Mapeia os dados reais e as marcas de tempo sequenciais diretamente do array
+  const labels = listaDadosPuros.map(r => formatarEixoX(r.hora));
+  const valores = listaDadosPuros.map(r => r.valor);
+
+  chart.data.labels = labels;
+  chart.data.datasets[0].data = valores;
+
+  ajustarEixoYCartaControlo(chart, limitesFixos);
+
+  if (limitesFixos) {
+    const LC = limitesFixos.LC || limitesFixos.lc;
+    const LSC = limitesFixos.LSC || limitesFixos.lsc;
+    const LIC = limitesFixos.LIC || limitesFixos.lic;
+    const sigma = limitesFixos.sigma;
+
+    const avisoSup = sigma ? LC + (2 * sigma) : LSC;
+    const avisoInf = sigma ? Math.max(0, LC - (2 * sigma)) : LIC;
+
+    if (estadoAtualMaquina !== "DESLIGADO") {
+        chart._fora = valores.map(v => v > LSC || v < LIC);
+    } else {
+        chart._fora = valores.map(() => false);
+    }
+    
+    // Desenha as linhas horizontais perfeitamente esticadas ao tamanho da linha verde
+    chart.data.datasets[1].data = labels.map(() => LC);
+    chart.data.datasets[2].data = labels.map(() => LSC);
+    chart.data.datasets[3].data = labels.map(() => LIC);
+    chart.data.datasets[4].data = labels.map(() => avisoSup);
+    chart.data.datasets[5].data = labels.map(() => avisoInf);
+  } else {
+    chart._fora = valores.map(() => false);
+    for(let i = 1; i <= 5; i++) { if(chart.data.datasets[i]) chart.data.datasets[i].data = []; }
+  }
+  chart.update("none");
+  return chart._fora ? chart._fora.filter(Boolean).length : 0;
+}
+
+async function carregarCartasControlo() {
+  let fix = null;
+  let erroLimites = false;
+  
+  // 1. CARREGAR OS LIMITES DO FICHEIRO JSON DO PYTHON
+  try {
+    const jsonRes = await fetch("/api/limites-controlo");
+    const jsonData = await jsonRes.json();
+    if (estadoAtualMaquina === "DESLIGADO" && jsonData.limites && jsonData.limites["TRABALHO"]) { 
+      fix = jsonData.limites["TRABALHO"]; 
+    } 
+    else if (jsonData.disponivel && jsonData.limites && jsonData.limites[estadoAtualMaquina]) { 
+      fix = jsonData.limites[estadoAtualMaquina]; 
+    } 
+    else { erroLimites = true; fix = null; }
+  } catch (e) { erroLimites = true; }
+
+  // 2. OBTER DADOS E FILTRAR A PARTIR DO PRIMEIRO PONTO DA FASE
+  try {
+    // Solicitamos uma janela de 30 minutos à API para garantir que apanhamos o início da fase
+    const res  = await fetch(`/api/leituras?periodo=30%20MINUTE`);
+    let rows = await res.json();
+    if (!Array.isArray(rows)) return;
+
+    let timestampCorte = 0;
+    if (estadoAtualMaquina === "DESLIGADO") {
+      timestampCorte = Date.now() - (5 * 60 * 1000); // 5 min se estiver parado
+    } else {
+      timestampCorte = timestampMudancaEstado; // Início do ciclo em Vazio/Trabalho
+    }
+    
+    // FILTRAGEM PURA: Corta os dados mais antigos que o início do estado atual
+    rows = rows.filter(r => parseHoraDB(r.hora) >= timestampCorte).sort((a,b) => parseHoraDB(a.hora) - parseHoraDB(b.hora));
+
+    // Mapeia os dados limpos sem gerar furos temporais artificiais
+    let tempPura = rows.filter(r => r.topico.includes("temperatura") && r.temperatura !== null).map(r => ({ hora: r.hora, valor: parseFloat(r.temperatura) }));
+    let vibPura  = rows.filter(r => r.topico.includes("vibracao")    && r.rms_mm_s    !== null).map(r => ({ hora: r.hora, valor: parseFloat(r.rms_mm_s) }));
+    let corrPura = rows.filter(r => r.topico.includes("corrente")    && r.corrente_A  !== null).map(r => ({ hora: r.hora, valor: parseFloat(r.corrente_A) }));
+
+    const fixTemp = fix ? fix["sensor/temperatura"] : null;
+    const fixVib  = fix ? fix["sensor/vibracao"]    : null;
+    const fixCorr = fix ? fix["sensor/corrente"]    : null;
+
+    aplicarLinhasEixoX([chartCCTemp, chartCCVib, chartCCCorr], 8);
+
+    let totalFora = 0;
+    totalFora += atualizarCartaControloPure(chartCCTemp, tempPura, fixTemp);
+    totalFora += atualizarCartaControloPure(chartCCVib, vibPura, fixVib);
+    totalFora += atualizarCartaControloPure(chartCCCorr, corrPura, fixCorr);
+
+    const info = document.getElementById("cc-info");
+    let textoEstado = "";
+    if (estadoAtualMaquina === "DESLIGADO") textoEstado = "Máquina Parada - Limites de Trabalho em Referência (Últimos 5 Min)";
+    else if (estadoAtualMaquina === "VAZIO") textoEstado = "Análise SPC em Vazio — Linha a crescer desde o arranque";
+    else if (estadoAtualMaquina === "TRABALHO") textoEstado = "Análise SPC em Trabalho — Linha a crescer desde o arranque";
+
+    if (estadoAtualMaquina === "DESLIGADO") { info.textContent = textoEstado; info.style.color = "#ddd"; } 
+    else if (erroLimites) { info.textContent = `Aviso: Limites JSON ausentes p/ ${estadoAtualMaquina}`; info.style.color = "#EF9F27"; } 
+    else if (rows.length === 0) { info.textContent = `A aguardar primeiro ponto da fase... (${estadoAtualMaquina})`; info.style.color = "#EF9F27"; } 
+    else { info.textContent = totalFora > 0 ? `${textoEstado} (${totalFora} anomalias)` : `${textoEstado} (Processo Estável)`; info.style.color = totalFora > 0 ? "#ff6b6b" : "#A2CF3D"; }
+  } catch (e) { console.error("Erro Cartas:", e); }
+}
+
+const NOMES_SENSOR = { "sensor/temperatura": "Temperatura", "sensor/vibracao": "Vibração", "sensor/corrente": "Corrente" };
+const CAMPOS = { "sensor/temperatura": { min: "temp_min",  max: "temp_max",  media: "temp_media",  desvio: "temp_desvio",  unidade: "°C"   }, "sensor/vibracao":    { min: "vib_min",  max: "vib_max",  media: "vib_media",  desvio: "vib_desvio",  unidade: "mm/s" }, "sensor/corrente":    { min: "corr_min",  max: "corr_max",  media: "corr_media",  desvio: "corr_desvio",  unidade: "A"    } };
+
+async function carregarEstatisticas() {
+  const periodo = document.getElementById("select-periodo").value;
+  try {
+    const res  = await fetch(`/api/estatisticas?periodo=${encodeURIComponent(periodo)}`);
+    const data = await res.json();
+    document.getElementById("stats-label-periodo").textContent = `${data.periodo} (contexto: ${estadoAtualMaquina})`;
+    const grid = document.getElementById("stats-grid");
+    if (!data.sensores || data.sensores.length === 0) { grid.innerHTML = '<span style="color:#ddd;font-size:13px">Sem dados.</span>'; return; }
+    grid.innerHTML = data.sensores.map(s => {
+      const c = CAMPOS[s.topico]; const nome = NOMES_SENSOR[s.topico] || s.topico; if (!c) return "";
+      return `<div class="stats-sensor"><div class="sensor-titulo">${nome}</div><div class="stats-linha"><span class="chave">Mínimo</span><span class="valor-stat">${s[c.min] ?? "—"} <span style="color:#ddd;font-weight:normal;">${c.unidade}</span></span></div><div class="stats-linha"><span class="chave">Máximo</span><span class="valor-stat">${s[c.max] ?? "—"} <span style="color:#ddd;font-weight:normal;">${c.unidade}</span></span></div><div class="stats-linha"><span class="chave">Média</span><span class="valor-stat">${s[c.media] ?? "—"} <span style="color:#ddd;font-weight:normal;">${c.unidade}</span></span></div><div class="stats-linha"><span class="chave">Desvio</span><span class="valor-stat">${s[c.desvio] ?? "—"} <span style="color:#ddd;font-weight:normal;">${c.unidade}</span></span></div><div class="stats-total">${s.total_leituras} leituras avaliadas</div></div>`;
+    }).join("");
+  } catch (e) { console.error("Erro Estatísticas:", e); }
+}
+
+async function carregarResumo() {
+  try {
+    const res  = await fetch("/api/resumo"); const data = await res.json();
+    document.getElementById("leituras-min").textContent   = data.leituras_ultimo_min ?? "—";
+    document.getElementById("alertas-ativos").textContent = data.alertas_ativos ?? "0";
+    document.getElementById("temp-inst").innerHTML        = (data.temp_inst     ?? "—") + ' <span class="unidade">°C</span>';
+    document.getElementById("vib-inst").innerHTML         = (data.vib_inst      ?? "—") + ' <span class="unidade">mm/s</span>';
+    document.getElementById("corrente-inst").innerHTML    = (data.corrente_inst ?? "—") + ' <span class="unidade">A</span>';
+  } catch (e) { console.error("Erro Resumo:", e); }
+}
+
+async function carregarAlertas() { try { const res = await fetch("/api/alertas"); todasAnomalias = await res.json(); renderizarAlertas(); } catch (e) { console.error("Erro Alertas:", e); } }
+function renderizarAlertas() { const lista = document.getElementById("lista-alertas"); const containerVerMais = document.getElementById("ver-mais-container"); const btnVerMais = document.getElementById("btn-ver-mais"); if (!todasAnomalias.length) { lista.innerHTML = '<span class="sem-alertas">Tudo normal — Sem alertas ativos.</span>'; containerVerMais.style.display = "none"; return; } const limite = mostrarTodasAnomalias ? todasAnomalias.length : 5; const visiveis = todasAnomalias.slice(0, limite); lista.innerHTML = visiveis.map(a => `<div class="alerta-linha" id="alerta-${a.id}"><span class="badge ${a.nivel}">${a.nivel}</span><span class="hora">${a.hora}</span><span style="color:var(--branco)">${a.mensagem}</span><button class="btn-resolver" onclick="resolverAlerta(${a.id})">Resolver</button></div>`).join(""); if (todasAnomalias.length > 5) { containerVerMais.style.display = "block"; btnVerMais.innerText = mostrarTodasAnomalias ? "Ver menos" : `Ver mais (${todasAnomalias.length - 5} ocultos)`; } else containerVerMais.style.display = "none"; }
+function toggleAlertas() { mostrarTodasAnomalias = !mostrarTodasAnomalias; renderizarAlertas(); }
+async function resolverAlerta(id) { try { const res = await fetch(`/api/alertas/resolver/${id}`, { method: "POST" }); const data = await res.json(); if (data.ok) { const linha = document.getElementById(`alerta-${id}`); if (linha) { linha.style.opacity = "0"; setTimeout(() => carregarAlertas(), 400); } } } catch (e) { console.error("Erro Resolver:", e); } }
+async function resolverTodosAlertas() { if (!confirm("Tem a certeza que deseja resolver TODOS os alertas ativos?")) return; try { const res = await fetch("/api/alertas/resolver-todos", { method: "POST" }); if ((await res.json()).ok) { carregarAlertas(); carregarResumo(); } } catch (e) { console.error("Erro:", e); } }
+function exportarExcel() { window.location.href = `/exportar-excel?periodo=${encodeURIComponent(document.getElementById("select-export-periodo").value)}&estado=${encodeURIComponent(estadoAtualMaquina)}`; }
+
+async function carregarSaude() { try { const res   = await fetch("/api/saude"); const dados = await res.json(); document.getElementById("saude-grid").innerHTML = dados.map(s => `<div class="saude-sensor"><div class="saude-dot ${s.estado}"></div><div class="saude-info"><div class="saude-nome">${s.nome}</div><div class="saude-estado ${s.estado}">${s.estado === "online" ? "Online" : (s.estado === "lento" ? "Sinal lento" : "Offline")}</div><div class="saude-ultima">Última leitura: ${s.ultima}</div></div></div>`).join(""); } catch (e) { console.error("Erro Saúde:", e); } }
+
+async function atualizacaoRapida() { await carregarEstadoMotor(); carregarResumo(); carregarAlertas(); carregarSaude(); }
+async function atualizacaoLenta() { carregarDados(); carregarCartasControlo(); carregarEstatisticas(); }
+async function arranque() { await atualizacaoRapida(); atualizacaoLenta(); }
+
+arranque();
+setInterval(atualizacaoRapida, 3000);   
+setInterval(atualizacaoLenta, 15000);   
+</script>
+</body>
+</html>

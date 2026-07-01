@@ -1,0 +1,63 @@
+{
+  "disponivel": true,
+  "limites": {
+    "TRABALHO": {
+      "sensor/temperatura": {
+        "LC": 34.929,
+        "LSC": 46.8566,
+        "LIC": 23.0013,
+        "y_min": 18.2302,
+        "y_max": 51.6277,
+        "sigma": 3.97589,
+        "n": 104758
+      },
+      "sensor/vibracao": {
+        "LC": 1.7182,
+        "LSC": 4.0009,
+        "LIC": 0.0,
+        "y_min": 0.0,
+        "y_max": 4.8011,
+        "sigma": 0.76091,
+        "n": 105013
+      },
+      "sensor/corrente": {
+        "LC": 33.3496,
+        "LSC": 57.5497,
+        "LIC": 9.1495,
+        "y_min": 0.0,
+        "y_max": 67.2298,
+        "sigma": 8.06671,
+        "n": 105014
+      }
+    },
+    "VAZIO": {
+      "sensor/temperatura": {
+        "LC": 35.3099,
+        "LSC": 46.3603,
+        "LIC": 24.2596,
+        "y_min": 19.8394,
+        "y_max": 50.7804,
+        "sigma": 3.68345,
+        "n": 103214
+      },
+      "sensor/vibracao": {
+        "LC": 1.022,
+        "LSC": 2.3326,
+        "LIC": 0.0,
+        "y_min": 0.0,
+        "y_max": 2.7991,
+        "sigma": 0.43686,
+        "n": 103237
+      },
+      "sensor/corrente": {
+        "LC": 19.1898,
+        "LSC": 28.0214,
+        "LIC": 10.3582,
+        "y_min": 6.8255,
+        "y_max": 31.5541,
+        "sigma": 2.94388,
+        "n": 103225
+      }
+    }
+  }
+}
