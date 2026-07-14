@@ -20,7 +20,7 @@ SENSORES = {
 # ── Parâmetros das Cartas de Controlo (Fase I) ──────────────────────
 K_AVISO   = 2          # AVISO   = LC ± 2σ
 K_CRITICO = 3          # CRÍTICO = LC ± 3σ
-N_PERSISTENCIA = 10     # nº de leituras consecutivas fora antes de disparar
+N_PERSISTENCIA = 3     # nº de leituras consecutivas fora antes de disparar
 
 # ── Limiar de motor desligado ───────────────────────────────────────
 # CORRENTE_MINIMA_MOTOR é importado do config.py (ver import no topo).
